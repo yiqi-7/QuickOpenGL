@@ -3,7 +3,7 @@
 **目标读者：** 具备基本 C++ 语法，希望快速理解实时 3D 渲染并完成一个可交互小项目的学习者。  
 **建议课时：** 6～8 小时。  
 **开发环境：** VS Code、C++17、CMake 3.20+、Python 3、OpenGL 3.3 Core Profile。  
-**配套代码：** `src/00_window.cpp`、`src/01_triangle.cpp`、`src/02_cube.cpp`、`src/04_interactive_cube.cpp`。
+**配套代码：** 本讲义和《动手学 OpenGL 自学手册》都提供带注释的代码片段；当前 `src/` 目录已清空，可将练习代码写入自己的 `.cpp` 文件。初始示例仍保存在 Git 历史提交 `7a6d577`。
 
 > 学习目标不是记住所有 OpenGL API，而是理解一条最小渲染链路：创建上下文、提交顶点数据、配置顶点属性、编写 Shader、执行绘制、处理输入并更新相机。
 
@@ -71,11 +71,11 @@ CPU 提交顶点/纹理/状态
 顶点着色器按顶点执行，通常负责把模型局部坐标变换到裁剪空间，也可以传递纹理坐标、法线等属性。
 
 ```glsl
-#version 330 core
-layout (location = 0) in vec3 aPos;
-uniform mat4 uMVP;
+#version 330 core                         // 使用 GLSL 3.30，与 OpenGL 3.3 Core 对应
+layout (location = 0) in vec3 aPos;        // 从顶点属性位置 0 接收三维顶点坐标
+uniform mat4 uMVP;                         // CPU 每帧传入的模型-观察-投影矩阵
 void main() {
-    gl_Position = uMVP * vec4(aPos, 1.0);
+    gl_Position = uMVP * vec4(aPos, 1.0);  // 将顶点变换到裁剪空间；w=1 表示位置
 }
 ```
 
@@ -86,10 +86,10 @@ void main() {
 片段着色器通常为光栅化产生的每个片段计算颜色。
 
 ```glsl
-#version 330 core
-out vec4 FragColor;
+#version 330 core                         // 声明 Shader 使用的 GLSL 版本
+out vec4 FragColor;                       // 输出 RGBA 颜色到当前片段
 void main() {
-    FragColor = vec4(1.0, 0.4, 0.2, 1.0);
+    FragColor = vec4(1.0, 0.4, 0.2, 1.0); // 输出不透明的橙色（分量范围 0 到 1）
 }
 ```
 
@@ -112,9 +112,12 @@ VBO 是 GPU 侧缓冲对象，用来存储顶点属性数据。典型流程：
 3. `glBufferData()` 将 CPU 数据上传到 GPU。
 
 ```cpp
-GLuint vbo = 0;
+GLuint vbo = 0;  // 保存顶点缓冲对象的 OpenGL 句柄
+// 在 GPU 侧创建一个缓冲对象，并将句柄写入 vbo
 glGenBuffers(1, &vbo);
+// 将该缓冲绑定为当前的顶点数据缓冲
 glBindBuffer(GL_ARRAY_BUFFER, vbo);
+// 把 vertices 的字节数据上传到 GPU，提示数据会被反复读取
 glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 ```
 
@@ -125,11 +128,13 @@ glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 VAO 保存顶点属性如何从当前缓冲数据中读取的配置，例如属性位置、分量数量、数据类型、步长和偏移量。
 
 ```cpp
-glBindVertexArray(vao);
+glBindVertexArray(vao);  // 后续顶点属性配置会记录到这个 VAO
+// 指定位置属性从哪个顶点缓冲读取
 glBindBuffer(GL_ARRAY_BUFFER, vbo);
+// location=0、3 个 float；步长是每个顶点的字节数，偏移 0 从首字节读取
 glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE,
                       3 * sizeof(float), (void*)0);
-glEnableVertexAttribArray(0);
+glEnableVertexAttribArray(0);  // 启用位置 0，绘制时才会读取该属性
 ```
 
 可以把 VBO 理解为“数据本身”，VAO 理解为“如何解释这些数据”。绘制前绑定对应 VAO 即可恢复其顶点属性配置。
@@ -187,6 +192,8 @@ P_{clip}=P\,V\,M\,P_{local}
 透视投影模拟近大远小。GLM 中常用：
 
 ```cpp
+// 参数依次为垂直视场角（弧度）、宽高比、近裁剪面和远裁剪面
+// 返回投影矩阵；aspect 通常取 framebuffer 宽度除以高度
 glm::perspective(glm::radians(45.0f), aspect, 0.1f, 100.0f);
 ```
 
@@ -197,7 +204,8 @@ glm::perspective(glm::radians(45.0f), aspect, 0.1f, 100.0f);
 3D 物体的三角形可能互相遮挡。只按绘制顺序覆盖颜色是不够的，需要深度缓冲记录像素深度。
 
 ```cpp
-glEnable(GL_DEPTH_TEST);
+glEnable(GL_DEPTH_TEST);  // 让较近片段遮挡较远片段
+// 每帧同时清理颜色缓冲和深度缓冲，避免上一帧残留
 glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 ```
 
@@ -290,13 +298,13 @@ GLFW 鼠标回调提供鼠标按键状态和光标位置。左键按下时记录
 典型实时渲染循环：
 
 ```cpp
-while (!glfwWindowShouldClose(window)) {
-    processInput(window);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    updateMatrices();
-    drawScene();
-    glfwSwapBuffers(window);
-    glfwPollEvents();
+while (!glfwWindowShouldClose(window)) {        // 窗口收到关闭事件前持续渲染
+    processInput(window);                        // 读取并处理本帧输入
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // 清空上一帧颜色和深度
+    updateMatrices();                            // 更新模型、观察和投影矩阵
+    drawScene();                                 // 提交本帧绘制命令
+    glfwSwapBuffers(window);                     // 显示已渲染完成的后缓冲
+    glfwPollEvents();                            // 分发键盘、鼠标和窗口事件
 }
 ```
 
