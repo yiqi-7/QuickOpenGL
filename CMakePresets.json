@@ -1,0 +1,36 @@
+{
+    "version": 3,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 21,
+        "patch": 0
+    },
+    "configurePresets": [
+        {
+            "name": "vs2019",
+            "displayName": "Visual Studio 2019 x64 (QuickOpenGL)",
+            "description": "使用 MSVC 2019、CMake FetchContent 和 OpenGL 3.3 Core",
+            "generator": "Visual Studio 16 2019",
+            "architecture": "x64",
+            "binaryDir": "${sourceDir}/build",
+            "cacheVariables": {
+                "CMAKE_CXX_STANDARD": "17",
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "release",
+            "displayName": "Release",
+            "configurePreset": "vs2019",
+            "configuration": "Release"
+        },
+        {
+            "name": "debug",
+            "displayName": "Debug",
+            "configurePreset": "vs2019",
+            "configuration": "Debug"
+        }
+    ]
+}

@@ -32,11 +32,18 @@ function(add_gl_example target source)
     target_include_directories(${target} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
     target_link_libraries(${target} PRIVATE glfw glm::glm glad_gl_core_33 OpenGL::GL)
     if(MSVC)
+        # 源码包含中文练习说明，明确使用 UTF-8，避免 Windows 默认代码页误解析。
         target_compile_options(${target} PRIVATE /utf-8)
     endif()
 endfunction()
 
+# 自动收集 src/ 下所有 .cpp，每个文件编译成一个独立可执行目标。
+# 新增或重命名练习文件后重新配置即可，不需要手动修改这里。
 file(GLOB GL_EXAMPLE_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
+if(NOT GL_EXAMPLE_SOURCES)
+    message(WARNING "src/ 下没有 .cpp 文件：先在 src/ 里创建并实现你的示例")
+endif()
+
 foreach(gl_source IN LISTS GL_EXAMPLE_SOURCES)
     get_filename_component(gl_target "${gl_source}" NAME_WE)
     add_gl_example(${gl_target} ${gl_source})

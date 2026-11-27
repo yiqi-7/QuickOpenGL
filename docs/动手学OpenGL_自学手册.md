@@ -1,6 +1,6 @@
 # 动手学 OpenGL：从窗口到交互式贴图立方体
 
-本手册与 `OpenGL_Cpp_Quickstart_Guide.md` 配套。当前 `src/` 目录已清空，建议先读讲义对应章节，再把本手册中的带注释片段逐步写入自己的 `.cpp` 文件并编译运行。原有完整示例保存在 Git 历史提交 `7a6d577`。
+本手册与 `OpenGL_Cpp_Quickstart_Guide.md` 配套。`src/` 目录提供按课程编号组织的练习壳文件，建议先读讲义对应章节，再按照文件头的目标、TODO 和验收标准逐步完成。原有完整示例保存在 Git 历史提交 `7a6d577`。
 
 ## 0. 项目路线
 
@@ -14,8 +14,11 @@
 02_cube
   3D 顶点 -> MVP -> 深度测试 -> 立方体
        ↓
+03_texture
+  UV -> Texture -> PPM -> 纹理立方体
+       ↓
 04_interactive_cube
-  UV -> Texture -> Camera -> Mouse/Scroll
+  Camera -> Mouse/Scroll -> Auto Rotate
        ↓
 最终成果：可旋转、缩放、贴图的 3D 立方体
 ```
