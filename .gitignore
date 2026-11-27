@@ -1,5 +1,5 @@
 build/
-.vscode/
+.vscode/.cache/
 .idea/
 output/*
 !output/.gitkeep

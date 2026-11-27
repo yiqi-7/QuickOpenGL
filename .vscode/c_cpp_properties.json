@@ -1,0 +1,23 @@
+{
+    "version": 4,
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                "${workspaceFolder}/src",
+                "${workspaceFolder}/include",
+                "${workspaceFolder}/build/gladsources/glad_gl_core_33/include",
+                "${workspaceFolder}/build/_deps/glfw-src/include",
+                "${workspaceFolder}/build/_deps/glm-src"
+            ],
+            "compilerPath": "E:/Coding Tools/Visual Studio/2019/Community/VC/Tools/MSVC/14.29.30133/bin/Hostx64/x64/cl.exe",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "windows-msvc-x64",
+            "defines": [
+                "_CRT_SECURE_NO_WARNINGS",
+                "_CRT_NONSTDC_NO_DEPRECATE"
+            ]
+        }
+    ]
+}
