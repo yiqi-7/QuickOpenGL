@@ -1,8 +1,6 @@
 # QuickOpenGL：从零实现可交互的 3D 贴图立方体
 
-这是一个与 QuickOpenCV 配套思路一致的 C++ OpenGL 学习项目。`src/` 按课程编号提供带注释的完整可运行示例：每个文件都包含本课目标、关键 API、完整实现和运行命令。你可以先直接运行，再逐段阅读和修改。
-
-历史初始示例保存在 Git 提交 `7a6d577` 中，需要时可以通过 `git show` 或从该提交恢复。
+这是一个与 QuickOpenCV 配套思路一致的 C++ OpenGL 学习项目。`src/` 按课程编号提供带注释的练习框架：每个文件写明本课目标、关键 API、TODO 和验收标准；完整参考代码集中在 `docs/动手学OpenGL_自学手册.md` 的附录中，按指定路径逐课完成。
 
 ## 1. 环境要求
 
@@ -35,19 +33,19 @@ QuickOpenGL/
 ├── docs/
 │   ├── OpenGL_Cpp_Quickstart_Guide.md  # 入门讲义
 │   └── 动手学OpenGL_自学手册.md          # 完整代码片段与逐段解读
-├── src/                              # 按课程编号组织的完整可运行示例
-│   ├── 00_window.cpp                 # 完整：窗口、Context、GLAD
-│   ├── 01_triangle.cpp               # 完整：VAO、VBO、Shader、三角形
-│   ├── 02_cube.cpp                   # 完整：3D 顶点、MVP、深度测试
-│   ├── 03_texture.cpp                # 完整：UV、PPM 纹理、纹理采样
-│   └── 04_interactive_cube.cpp       # 完整：鼠标、滚轮、轨道摄像机
+├── src/                              # 按课程编号组织的练习框架
+│   ├── 00_window.cpp                 # 窗口、Context、GLAD
+│   ├── 01_triangle.cpp               # VAO、VBO、Shader、三角形
+│   ├── 02_cube.cpp                   # 3D 顶点、MVP、深度测试
+│   ├── 03_texture.cpp                # UV、PPM 纹理、纹理采样
+│   └── 04_interactive_cube.cpp       # 鼠标、滚轮、轨道摄像机
 ├── include/                          # 可放置项目头文件
 ├── assets/
 │   └── checker.ppm                   # 示例纹理资源
 └── output/                           # 可选运行结果
 ```
 
-每个 `src/*.cpp` 都是独立可执行目标。`CMakeLists.txt` 自动扫描源文件；新增、删除或重命名示例文件后重新配置即可。文档中的代码块用于解释关键步骤，实际完整代码直接放在对应的 `src/*.cpp` 文件中。
+每个 `src/*.cpp` 都是独立可执行目标。`CMakeLists.txt` 自动扫描源文件；新增、删除或重命名练习文件后重新配置即可。手册附录提供完整参考代码，练习时将代码写入对应的 `src/*.cpp` 文件。
 
 ## 3. 构建与运行
 
@@ -98,15 +96,15 @@ cmake --build build -j
 
 ## 4. 开始编写
 
-`src/` 已经准备好 00~04 五个完整示例文件。建议按编号运行和阅读，每个文件都可以单独编译和运行：
+`src/` 已经准备好 00~04 五个练习框架文件。建议按编号完成，每个文件都可以单独编译和运行：
 
-1. 运行并阅读 `00_window.cpp`，确认窗口、Context 和 GLAD 初始化正常。
-2. 运行并阅读 `01_triangle.cpp`，理解 VAO、VBO、Shader 和第一次绘制。
-3. 运行并阅读 `02_cube.cpp`，理解 3D 坐标、MVP 和深度测试。
-4. 运行并阅读 `03_texture.cpp`，理解 UV 和 `assets/checker.ppm` 纹理。
-5. 运行并阅读 `04_interactive_cube.cpp`，理解鼠标、滚轮和轨道摄像机。
+1. 按手册附录完成 `00_window.cpp`，确认窗口、Context 和 GLAD 初始化正常。
+2. 按手册附录完成 `01_triangle.cpp`，理解 VAO、VBO、Shader 和第一次绘制。
+3. 按手册附录完成 `02_cube.cpp`，理解 3D 坐标、MVP 和深度测试。
+4. 按手册附录完成 `03_texture.cpp`，理解 UV 和 `assets/checker.ppm` 纹理。
+5. 按手册附录完成 `04_interactive_cube.cpp`，理解鼠标、滚轮和轨道摄像机。
 
-CMake 会自动扫描 `src/*.cpp`，重新配置后每个文件都会生成同名可执行目标。每个示例文件顶部都写有本课目标、重点 API、完整运行命令和验收标准。
+CMake 会自动扫描 `src/*.cpp`，重新配置后每个文件都会生成同名可执行目标。每个练习文件顶部都写有本课目标、重点 API、TODO、运行命令和验收标准。
 
 历史版本中的交互式立方体操作如下，恢复旧提交后可以继续使用：
 
@@ -122,9 +120,9 @@ CMake 会自动扫描 `src/*.cpp`，重新配置后每个文件都会生成同�
 
 1. 阅读 `docs/OpenGL_Cpp_Quickstart_Guide.md`，建立 OpenGL 渲染管线的整体认识。
 2. 阅读 `docs/动手学OpenGL_自学手册.md` 中对应课程的代码解释。
-3. 按 `src/00_window.cpp` 到 `src/04_interactive_cube.cpp` 的顺序运行完整源码。
+3. 按 `src/00_window.cpp` 到 `src/04_interactive_cube.cpp` 的顺序完成 TODO。
 4. 每完成一课就单独编译、运行并对照文件头的验收标准。
-5. 先阅读对应 `src/*.cpp` 的完整实现，再结合手册中的片段理解每一步；后续可以复制该文件继续做自己的改动。
+5. 卡住时查看手册末尾对应附录，把参考代码写回指定的 `src/*.cpp` 文件。
 
 ## 6. 常见问题
 
