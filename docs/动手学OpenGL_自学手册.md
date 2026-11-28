@@ -1,6 +1,6 @@
 # 动手学 OpenGL：从窗口到交互式贴图立方体
 
-本手册与 `OpenGL_Cpp_Quickstart_Guide.md` 配套。`src/` 目录提供按课程编号组织的练习壳文件，建议先读讲义对应章节，再按照文件头的目标、TODO 和验收标准逐步完成。原有完整示例保存在 Git 历史提交 `7a6d577`。
+本手册与 `OpenGL_Cpp_Quickstart_Guide.md` 配套。每一课都有对应的完整源码文件，代码必须写在指定的 `src/*.cpp` 路径中；手册里的代码块用于解释关键步骤，实际可直接编译运行的版本以源码文件为准。建议先运行完整示例，再按本手册逐段阅读。
 
 ## 0. 项目路线
 
@@ -82,12 +82,11 @@ int main() {
 
 请按下面顺序动手：
 
-1. 打开 `src/01_triangle.cpp`，保留文件顶部的学习目标、TODO 和验收说明。
-2. 把第 1 课的 GLFW 窗口创建、GLAD 加载和主循环写入这个文件的 `main()`。
-3. 在窗口和 GLAD 初始化成功之后，加入本课的顶点数组、VAO、VBO 和 Shader Program 创建代码。
-4. 在主循环的 `glClear()` 后加入 `glUseProgram(program)`、`glBindVertexArray(vao)` 和 `glDrawArrays()`。
-5. Shader 可以先使用本手册中的 GLSL 字符串；Shader 编译和链接函数建议放在 `main()` 前面，供后续课程继续复用。
-6. 完成后只编译和运行本课目标：`00_window` 不需要修改，使用 `01_triangle` 验证。
+1. 打开 `src/01_triangle.cpp`，这里已经放好了可以直接编译运行的完整三角形程序。
+2. 先直接运行 `01_triangle`，确认窗口和三角形正常显示。
+3. 再阅读 `main()` 前面的 `compileShader()`、`createProgram()`，理解 Shader 编译和链接。
+4. 按顶点数组、VAO/VBO 初始化、主循环绘制的顺序阅读；如果要练习修改，就直接改这个文件。
+5. 不需要把下面的片段拼接到别的文件；下面的代码只用于解释 `src/01_triangle.cpp` 中的实现。
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\build.ps1 01_triangle -Run
@@ -151,15 +150,15 @@ glDrawArrays(GL_TRIANGLES, 0, 3); // 从顶点 0 取 3 个顶点组成一个三�
 
 本课只修改：`src/02_cube.cpp`。
 
-请从 `src/01_triangle.cpp` 复制并改造，而不是重新创建一个临时文件：
+`src/02_cube.cpp` 已经放好了可以直接运行的完整立方体程序。阅读和修改时按这个方向：
 
-1. 保留第 2 课已经验证过的窗口初始化、Shader 编译、Program 链接、VAO 和 VBO 创建流程。
-2. 将三角形顶点数组替换为立方体顶点数组；立方体的 6 个面需要 36 个顶点。
-3. 在 `main()` 初始化阶段加入 `glEnable(GL_DEPTH_TEST)`，并确认创建窗口时带有深度缓冲。
-4. 在主循环中使用 `glfwGetTime()` 计算旋转角度，构造 Model、View、Projection 和 MVP 矩阵。
-5. 在绘制前用 `glUniformMatrix4fv()` 把 MVP 上传到当前 Shader，再绑定 VAO 并绘制立方体。
-6. 窗口大小回调和 framebuffer 宽高比也写在 `src/02_cube.cpp`；不要把 3D 代码继续堆进 `src/01_triangle.cpp`。
-7. 完成后使用目标 `02_cube` 验证本课：
+1. 先运行 `02_cube`，确认旋转立方体和前后遮挡正常。
+2. 对照 `src/01_triangle.cpp`，查看 `src/02_cube.cpp` 如何把顶点数组扩展为 36 个顶点。
+3. 阅读每帧的 Model、View、Projection 和 MVP 计算，再修改摄像机位置、视场角或旋转速度。
+4. 深度测试、窗口大小回调和 Shader 都已经在 `src/02_cube.cpp` 中接好，不需要从手册片段手动拼接。
+5. 如果要保留自己的实验版本，可以复制 `src/02_cube.cpp` 为新的 `src/*.cpp` 文件。
+
+完成后使用目标 `02_cube` 验证本课：
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\build.ps1 02_cube -Run
@@ -210,14 +209,15 @@ glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // 每帧同时清颜色与�
 
 本课只修改：`src/03_texture.cpp`。
 
-本课从 `src/02_cube.cpp` 继续：
+`src/03_texture.cpp` 已经放好了可以直接运行的完整纹理立方体程序。阅读和修改时按这个方向：
 
-1. 复制第 3 课已经能旋转的立方体结构到 `src/03_texture.cpp`，保留 MVP、深度测试和渲染循环。
-2. 把每个顶点从 `xyz` 扩展为 `xyzuv`，并在 VAO 初始化处同时配置 location 0 的位置和 location 1 的 UV。
-3. 在 `src/03_texture.cpp` 中加入 `assets/checker.ppm` 的读取函数；相对路径按项目根目录计算，运行时不要从 `build/` 目录启动。
-4. 在纹理初始化区域创建 `GL_TEXTURE_2D`，设置 Wrap、Filter、`glTexImage2D()` 和 `glGenerateMipmap()`。
-5. 将本课的 Vertex Shader 和 Fragment Shader 字符串放进 `src/03_texture.cpp`，在绘制前激活纹理单元 0 并设置 `uTexture`。
-6. 使用目标 `03_texture` 编译和运行，先确认静态纹理立方体显示正确，再进入下一课：
+1. 先运行 `03_texture`，确认 `assets/checker.ppm` 能加载并显示在六个面上。
+2. 对照 `src/02_cube.cpp`，查看 `src/03_texture.cpp` 如何把每个顶点从 `xyz` 扩展为 `xyzuv`。
+3. 阅读 `loadPpmP3()`、纹理对象创建、Shader 的 `sampler2D` 和 VAO 的两个属性配置。
+4. 运行时必须从项目根目录启动，这样 `assets/checker.ppm` 的相对路径才能找到。
+5. 如果要更换图片，先保持 P3 PPM 格式，修改 `src/03_texture.cpp` 中的纹理路径。
+
+使用目标 `03_texture` 编译和运行，确认静态纹理立方体显示正确，再进入下一课：
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\build.ps1 03_texture -Run
@@ -274,15 +274,14 @@ glEnableVertexAttribArray(1);
 
 本课只修改：`src/04_interactive_cube.cpp`。
 
-本课是前面课程的综合版本，建议按以下方向实现：
+`src/04_interactive_cube.cpp` 已经放好了最终的完整交互式纹理立方体程序。阅读和修改时按这个方向：
 
-1. 复制 `src/03_texture.cpp` 的完整纹理立方体到 `src/04_interactive_cube.cpp`，先确保不加输入时仍能显示纹理。
-2. 在文件顶部或匿名命名空间中定义 `yaw`、`pitch`、`distance`、`autoRotate`、鼠标拖动状态和上一次光标位置。
-3. 在 `main()` 前声明并实现 `framebufferSizeCallback`、`mouseButtonCallback`、`cursorPositionCallback`、`scrollCallback` 和 `processInput`。
-4. 创建窗口后用 `glfwSetFramebufferSizeCallback()`、`glfwSetMouseButtonCallback()`、`glfwSetCursorPosCallback()` 和 `glfwSetScrollCallback()` 注册回调。
-5. 在主循环中先计算 `deltaTime`，再调用 `processInput()`；根据 yaw、pitch 和 distance 计算相机位置，最后生成 View 矩阵。
-6. 把 `F`、`R` 和 `ESC` 的处理写进 `processInput()`，不要把键盘判断散落在绘制代码中。
-7. 完成后使用目标 `04_interactive_cube` 验证：
+1. 先运行 `04_interactive_cube`，确认纹理立方体可以显示。
+2. 阅读文件顶部的 `CameraState`，理解 yaw、pitch、distance 和鼠标状态分别保存什么。
+3. 按顺序阅读 `mouseButtonCallback()`、`cursorPositionCallback()`、`scrollCallback()` 和 `processInput()`，对应鼠标、滚轮和键盘控制。
+4. 阅读主循环中的 `deltaTime`、球面轨道相机位置和 View 矩阵计算。
+5. 需要练习时直接修改 `src/04_interactive_cube.cpp`；不需要把本课片段复制到 `src/03_texture.cpp`。
+6. 完成后使用目标 `04_interactive_cube` 验证：
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\build.ps1 04_interactive_cube -Run
@@ -333,7 +332,7 @@ distance = std::clamp(distance - static_cast<float>(yOffset) * zoomSpeed,
 
 ### 本课代码写在哪里
 
-第 6 课不再新建源码文件，继续验收和完善：`src/04_interactive_cube.cpp`。
+第 6 课不再新建源码文件，继续验收和完善完整程序：`src/04_interactive_cube.cpp`。
 
 请在项目根目录执行下面的命令：
 
