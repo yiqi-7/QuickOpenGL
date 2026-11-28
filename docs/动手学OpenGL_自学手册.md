@@ -76,6 +76,25 @@ int main() {
 **代码：** 本节的带注释 VBO/VAO 与绘制片段
 **目标：** 理解最小可编程渲染流程。
 
+### 本课代码写在哪里
+
+本课只修改：`src/01_triangle.cpp`。
+
+请按下面顺序动手：
+
+1. 打开 `src/01_triangle.cpp`，保留文件顶部的学习目标、TODO 和验收说明。
+2. 把第 1 课的 GLFW 窗口创建、GLAD 加载和主循环写入这个文件的 `main()`。
+3. 在窗口和 GLAD 初始化成功之后，加入本课的顶点数组、VAO、VBO 和 Shader Program 创建代码。
+4. 在主循环的 `glClear()` 后加入 `glUseProgram(program)`、`glBindVertexArray(vao)` 和 `glDrawArrays()`。
+5. Shader 可以先使用本手册中的 GLSL 字符串；Shader 编译和链接函数建议放在 `main()` 前面，供后续课程继续复用。
+6. 完成后只编译和运行本课目标：`00_window` 不需要修改，使用 `01_triangle` 验证。
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\build.ps1 01_triangle -Run
+```
+
+不要把三角形代码写回 `src/00_window.cpp`；第 1 课负责窗口，第 2 课从 `src/01_triangle.cpp` 开始形成第一个可绘制目标。
+
 ### 2.1 顶点数据
 
 三个二维平面位置以三维向量形式提交：每个顶点包含 x、y、z。数据最初位于 CPU 内存，随后通过 `glBufferData()` 上传到 VBO。
@@ -128,6 +147,26 @@ glDrawArrays(GL_TRIANGLES, 0, 3); // 从顶点 0 取 3 个顶点组成一个三�
 **代码：** 本节的带注释 MVP 与深度测试片段
 **目标：** 理解三维顶点、MVP 与深度缓冲。
 
+### 本课代码写在哪里
+
+本课只修改：`src/02_cube.cpp`。
+
+请从 `src/01_triangle.cpp` 复制并改造，而不是重新创建一个临时文件：
+
+1. 保留第 2 课已经验证过的窗口初始化、Shader 编译、Program 链接、VAO 和 VBO 创建流程。
+2. 将三角形顶点数组替换为立方体顶点数组；立方体的 6 个面需要 36 个顶点。
+3. 在 `main()` 初始化阶段加入 `glEnable(GL_DEPTH_TEST)`，并确认创建窗口时带有深度缓冲。
+4. 在主循环中使用 `glfwGetTime()` 计算旋转角度，构造 Model、View、Projection 和 MVP 矩阵。
+5. 在绘制前用 `glUniformMatrix4fv()` 把 MVP 上传到当前 Shader，再绑定 VAO 并绘制立方体。
+6. 窗口大小回调和 framebuffer 宽高比也写在 `src/02_cube.cpp`；不要把 3D 代码继续堆进 `src/01_triangle.cpp`。
+7. 完成后使用目标 `02_cube` 验证本课：
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\build.ps1 02_cube -Run
+```
+
+本课的 Shader 仍然可以写成 `src/02_cube.cpp` 中的字符串；如果后续想拆出 `.glsl` 文件，再统一放到 `assets/shaders/`，不要混入 `build/` 目录。
+
 立方体有 6 个面，每个面由 2 个三角形组成，因此示例直接提交 36 个顶点。开启深度测试后，GPU 根据深度缓冲判断哪些片段应该被遮挡。
 
 每帧构造三个矩阵：
@@ -166,6 +205,25 @@ glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // 每帧同时清颜色与�
 
 **代码：** 本节的带注释纹理与相机片段
 **目标：** 理解顶点 UV、纹理对象和片段采样。
+
+### 本课代码写在哪里
+
+本课只修改：`src/03_texture.cpp`。
+
+本课从 `src/02_cube.cpp` 继续：
+
+1. 复制第 3 课已经能旋转的立方体结构到 `src/03_texture.cpp`，保留 MVP、深度测试和渲染循环。
+2. 把每个顶点从 `xyz` 扩展为 `xyzuv`，并在 VAO 初始化处同时配置 location 0 的位置和 location 1 的 UV。
+3. 在 `src/03_texture.cpp` 中加入 `assets/checker.ppm` 的读取函数；相对路径按项目根目录计算，运行时不要从 `build/` 目录启动。
+4. 在纹理初始化区域创建 `GL_TEXTURE_2D`，设置 Wrap、Filter、`glTexImage2D()` 和 `glGenerateMipmap()`。
+5. 将本课的 Vertex Shader 和 Fragment Shader 字符串放进 `src/03_texture.cpp`，在绘制前激活纹理单元 0 并设置 `uTexture`。
+6. 使用目标 `03_texture` 编译和运行，先确认静态纹理立方体显示正确，再进入下一课：
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\build.ps1 03_texture -Run
+```
+
+不要把纹理代码直接修改到 `src/02_cube.cpp`；这样可以保留一个没有纹理的 MVP 对照版本。
 
 每个顶点由 5 个 float 组成：3 个位置分量和 2 个纹理坐标分量。VAO 分别配置 location 0 和 location 1。Vertex Shader 将 UV 传给 Fragment Shader，Fragment Shader 使用 `texture(uTexture, TexCoord)` 取样。
 
@@ -212,6 +270,26 @@ glEnableVertexAttribArray(1);
 **代码：** 本节的带注释纹理与相机片段
 **目标：** 把用户输入转换为摄像机参数。
 
+### 本课代码写在哪里
+
+本课只修改：`src/04_interactive_cube.cpp`。
+
+本课是前面课程的综合版本，建议按以下方向实现：
+
+1. 复制 `src/03_texture.cpp` 的完整纹理立方体到 `src/04_interactive_cube.cpp`，先确保不加输入时仍能显示纹理。
+2. 在文件顶部或匿名命名空间中定义 `yaw`、`pitch`、`distance`、`autoRotate`、鼠标拖动状态和上一次光标位置。
+3. 在 `main()` 前声明并实现 `framebufferSizeCallback`、`mouseButtonCallback`、`cursorPositionCallback`、`scrollCallback` 和 `processInput`。
+4. 创建窗口后用 `glfwSetFramebufferSizeCallback()`、`glfwSetMouseButtonCallback()`、`glfwSetCursorPosCallback()` 和 `glfwSetScrollCallback()` 注册回调。
+5. 在主循环中先计算 `deltaTime`，再调用 `processInput()`；根据 yaw、pitch 和 distance 计算相机位置，最后生成 View 矩阵。
+6. 把 `F`、`R` 和 `ESC` 的处理写进 `processInput()`，不要把键盘判断散落在绘制代码中。
+7. 完成后使用目标 `04_interactive_cube` 验证：
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\build.ps1 04_interactive_cube -Run
+```
+
+本课完成后，`src/04_interactive_cube.cpp` 才是最终综合程序；前面的 `00_window.cpp`、`01_triangle.cpp`、`02_cube.cpp` 和 `03_texture.cpp` 保留为独立的学习对照版本。
+
 ### 5.1 鼠标旋转
 
 左键按下时记录光标位置；移动时计算 dx/dy，更新 yaw/pitch。pitch 被限制在 [-89°, 89°]，避免视线方向与世界上方向向量接近平行。
@@ -252,6 +330,18 @@ distance = std::clamp(distance - static_cast<float>(yOffset) * zoomSpeed,
 **验收：** 鼠标拖动能连续旋转立方体，滚轮能缩放，窗口改变大小后画面比例正常。
 
 ## 第 6 课：综合验收
+
+### 本课代码写在哪里
+
+第 6 课不再新建源码文件，继续验收和完善：`src/04_interactive_cube.cpp`。
+
+请在项目根目录执行下面的命令：
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\build.ps1 04_interactive_cube -Run
+```
+
+如果某项验收失败，回到 `src/04_interactive_cube.cpp` 修改对应区域：窗口或 GLAD 问题看初始化部分，Shader 或纹理问题看资源创建部分，旋转和缩放问题看回调与相机计算部分，窗口变形问题看 framebuffer 回调和 Projection 更新部分。完成后再重复编译运行，不要修改 `build/Release/` 中生成的 `.exe`。
 
 逐项检查：
 
