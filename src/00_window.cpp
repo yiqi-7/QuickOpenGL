@@ -25,8 +25,41 @@
 
 int main()
 {
-    // TODO: 按上面的 1~6 步实现最小 OpenGL 窗口。
-    // 卡住时先阅读 docs/动手学OpenGL_自学手册.md》的窗口骨架。
-    std::cout << "TODO: implement the OpenGL window example\n";
+    if (!glfwInit()) return 1; // 初始化GLFW
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3); // 请求OpenGL 3.x
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3); // 请求OpenGL 3.3
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE); // 使用现代profile
+
+    GLFWwindow* window = glfwCreateWindow(640, 380, "Hello World", nullptr, nullptr);
+    if (!window) { // 释放GLFW
+        glfwTerminate(); 
+        return 1;
+    }
+
+    glfwMakeContextCurrent(window); // 后续GL效用依赖但概念这个Context
+    if (!gladLoadGL((GLADloadfunc)glfwGetProcAddress)) return 1; // 加载函数指针
+    
+    while (!glfwWindowShouldClose(window)) { // 循环渲染一帧
+        const float time = static_cast<float>(glfwGetTime());
+        
+        const float red =
+    0.050f + 0.150f * (std::sin(time) + 1.0f) * 0.5f;
+
+    const float green =
+    0.030f + 0.120f * (std::sin(time + 2.0f) + 1.0f) * 0.5f;
+
+    const float blue =
+    0.080f + 0.180f * (std::sin(time + 4.0f) + 1.0f) * 0.5f;
+
+        glClearColor(red, green, blue, 1.0f); // 设置清屏颜色 
+        glClear(GL_COLOR_BUFFER_BIT);           // 设置清屏缓冲
+        glfwSwapBuffers(window);                // 显示后缓冲
+        glfwPollEvents();                       // 处理窗口和输入事件
+    
+    }
+    glfwDestroyWindow(window); // 销毁窗口资源
+    glfwTerminate(); // 结束GLFW
+    
+
     return 0;
 }
