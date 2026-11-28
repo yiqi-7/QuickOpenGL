@@ -396,26 +396,32 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\build.ps1 04_interacti
 //
 // 运行：powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\build.ps1 00_window -Run
 // ============================================================================
+// GLAD 声明 OpenGL 函数类型，并在 Context 创建后加载实际函数地址。
 #include <glad/gl.h>
+// GLFW 负责窗口、OpenGL Context 以及键盘鼠标事件。
 #include <GLFW/glfw3.h>
 
 #include <cmath>
 #include <iostream>
 
+// 每个附录都是一个独立程序，因此从 main() 开始完成初始化、绘制和释放。
 int main()
 {
     // 1. 初始化 GLFW；失败时不要继续调用 GLFW API。
+    // 初始化 GLFW；失败时没有可用的窗口系统，立即返回。
     if (!glfwInit()) {
         std::cerr << "Failed to initialize GLFW.\n";
         return 1;
     }
 
     // 2. 请求 OpenGL 3.3 Core Profile。
+    // 这些 Hint 必须在创建窗口前设置，决定新 Context 请求的 OpenGL 版本和模式。
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     // 3. 创建窗口和 OpenGL Context。
+    // 创建窗口时同时创建与之关联的 OpenGL Context。
     GLFWwindow* window = glfwCreateWindow(640, 380, "QuickOpenGL - Window", nullptr, nullptr);
     if (!window) {
         std::cerr << "Failed to create GLFW window.\n";
@@ -424,21 +430,27 @@ int main()
     }
 
     // 4. 让这个 Context 成为当前线程的 Context。
+    // 只有当前线程拥有有效 Context 后，glXXX 函数调用才有作用。
     glfwMakeContextCurrent(window);
 
     // 5. Context 创建后才能加载 OpenGL 函数指针。
+    // GLFW 提供地址查询入口，GLAD 用它加载当前驱动支持的 OpenGL 函数。
     if (!gladLoadGL(reinterpret_cast<GLADloadfunc>(glfwGetProcAddress))) {
         std::cerr << "Failed to load OpenGL functions.\n";
-        glfwDestroyWindow(window);
+        // 退出时释放窗口和 Context；随后终止 GLFW 的全局资源。
+    glfwDestroyWindow(window);
         glfwTerminate();
         return 1;
     }
 
+    // 查询驱动报告的版本和渲染器，确认 Context 确实创建成功。
     std::cout << "OpenGL version: " << glGetString(GL_VERSION) << '\n';
     std::cout << "Renderer: " << glGetString(GL_RENDERER) << '\n';
 
     // 6. 主循环：清屏、显示当前帧、处理输入事件。
+    // 每次循环完成一帧：处理输入、更新状态、清除缓冲、绘制、交换前后缓冲。
     while (!glfwWindowShouldClose(window)) {
+        // 使用经过的秒数驱动动画，避免把动画速度写死为某个帧数。
         const float time = static_cast<float>(glfwGetTime());
 
         // 三个颜色通道使用不同相位，形成缓慢变化的“五彩斑斓的黑”。
@@ -446,14 +458,19 @@ int main()
         const float green = 0.030f + 0.120f * (std::sin(time + 2.0f) + 1.0f) * 0.5f;
         const float blue = 0.080f + 0.180f * (std::sin(time + 4.0f) + 1.0f) * 0.5f;
 
+        // glClearColor 只设置清屏状态，下一行 glClear 才真正写入颜色缓冲。
         glClearColor(red, green, blue, 1.0f);
+        // 清除上一帧的颜色，避免新帧残留旧画面。
         glClear(GL_COLOR_BUFFER_BIT);
 
+        // 双缓冲先绘制后台缓冲，再一次性显示，避免半帧画面闪烁。
         glfwSwapBuffers(window);
+        // 取出操作系统事件，否则窗口无法响应移动、关闭和键盘鼠标输入。
         glfwPollEvents();
     }
 
     // 7. 退出时释放窗口和 GLFW 资源。
+    // 退出时释放窗口和 Context；随后终止 GLFW 的全局资源。
     glfwDestroyWindow(window);
     glfwTerminate();
     return 0;
@@ -475,7 +492,9 @@ int main()
 //
 // 运行：powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\build.ps1 01_triangle -Run
 // ============================================================================
+// GLAD 声明 OpenGL 函数类型，并在 Context 创建后加载实际函数地址。
 #include <glad/gl.h>
+// GLFW 负责窗口、OpenGL Context 以及键盘鼠标事件。
 #include <GLFW/glfw3.h>
 
 #include <iostream>
@@ -483,19 +502,25 @@ int main()
 
 namespace {
 
+// 将一段 GLSL 源码编译成一个 Shader 对象；type 区分顶点和片段阶段。
 GLuint compileShader(GLenum type, const char* source)
 {
+    // 先创建空对象，再上传源码并请求驱动编译。
     const GLuint shader = glCreateShader(type);
+    // 把 C++ 字符串交给 OpenGL；第三个参数表示源码字符串数量为 1。
     glShaderSource(shader, 1, &source, nullptr);
+    // 编译只检查 GLSL 语法和类型，失败信息要通过 GL_COMPILE_STATUS 查询。
     glCompileShader(shader);
 
     GLint success = GL_FALSE;
+    // 读取编译状态；失败时下面会取得 Info Log。
     glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
     if (!success) {
         GLint logLength = 0;
         glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &logLength);
         std::string log(static_cast<std::size_t>(logLength), '\0');
-        glGetShaderInfoLog(shader, logLength, nullptr, log.data());
+            // Info Log 包含行号和错误原因，学习阶段应始终打印它。
+    glGetShaderInfoLog(shader, logLength, nullptr, log.data());
         std::cerr << "Shader compilation failed:\n" << log << '\n';
         glDeleteShader(shader);
         return 0;
@@ -503,22 +528,28 @@ GLuint compileShader(GLenum type, const char* source)
     return shader;
 }
 
+// 把两个已编译 Shader 链接成一次绘制使用的 Program。
 GLuint createProgram(const char* vertexSource, const char* fragmentSource)
 {
     const GLuint vertexShader = compileShader(GL_VERTEX_SHADER, vertexSource);
     const GLuint fragmentShader = compileShader(GL_FRAGMENT_SHADER, fragmentSource);
     if (vertexShader == 0 || fragmentShader == 0) {
-        glDeleteShader(vertexShader);
+        // Program 链接完成后不再需要临时 Shader 对象，可以释放它们。
+    glDeleteShader(vertexShader);
         glDeleteShader(fragmentShader);
         return 0;
     }
 
+    // Program 保存 Shader 阶段之间的接口和最终可执行代码。
     const GLuint program = glCreateProgram();
+    // 先附加顶点和片段阶段，再链接它们的输入输出接口。
     glAttachShader(program, vertexShader);
     glAttachShader(program, fragmentShader);
+    // 链接阶段会检查两个 Shader 的接口是否匹配。
     glLinkProgram(program);
 
     GLint success = GL_FALSE;
+    // 编译成功不代表链接成功，所以还要单独检查 GL_LINK_STATUS。
     glGetProgramiv(program, GL_LINK_STATUS, &success);
     if (!success) {
         GLint logLength = 0;
@@ -527,34 +558,42 @@ GLuint createProgram(const char* vertexSource, const char* fragmentSource)
         glGetProgramInfoLog(program, logLength, nullptr, log.data());
         std::cerr << "Shader program linking failed:\n" << log << '\n';
         glDeleteProgram(program);
-        glDeleteShader(vertexShader);
+        // Program 链接完成后不再需要临时 Shader 对象，可以释放它们。
+    glDeleteShader(vertexShader);
         glDeleteShader(fragmentShader);
         return 0;
     }
 
+    // Program 链接完成后不再需要临时 Shader 对象，可以释放它们。
     glDeleteShader(vertexShader);
     glDeleteShader(fragmentShader);
     return program;
 }
 
+// framebuffer 尺寸变化时更新 viewport；这里的像素尺寸可能和窗口逻辑尺寸不同。
 void framebufferSizeCallback(GLFWwindow*, int width, int height)
 {
+    // viewport 把 OpenGL 的标准化设备坐标映射到当前 framebuffer。
     glViewport(0, 0, width, height);
 }
 
 } // namespace
 
+// 每个附录都是一个独立程序，因此从 main() 开始完成初始化、绘制和释放。
 int main()
 {
+    // 初始化 GLFW；失败时没有可用的窗口系统，立即返回。
     if (!glfwInit()) {
         std::cerr << "Failed to initialize GLFW.\n";
         return 1;
     }
 
+    // 这些 Hint 必须在创建窗口前设置，决定新 Context 请求的 OpenGL 版本和模式。
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
+    // 创建窗口时同时创建与之关联的 OpenGL Context。
     GLFWwindow* window = glfwCreateWindow(800, 600, "QuickOpenGL - Triangle", nullptr, nullptr);
     if (!window) {
         std::cerr << "Failed to create GLFW window.\n";
@@ -562,11 +601,14 @@ int main()
         return 1;
     }
 
+    // 只有当前线程拥有有效 Context 后，glXXX 函数调用才有作用。
     glfwMakeContextCurrent(window);
     glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
+    // GLFW 提供地址查询入口，GLAD 用它加载当前驱动支持的 OpenGL 函数。
     if (!gladLoadGL(reinterpret_cast<GLADloadfunc>(glfwGetProcAddress))) {
         std::cerr << "Failed to load OpenGL functions.\n";
-        glfwDestroyWindow(window);
+        // 退出时释放窗口和 Context；随后终止 GLFW 的全局资源。
+    glfwDestroyWindow(window);
         glfwTerminate();
         return 1;
     }
@@ -574,6 +616,7 @@ int main()
     // 顶点着色器：把二维三角形顶点直接输出到裁剪空间。
     constexpr const char* vertexSource = R"(
         #version 330 core
+        // location 0 接收位置，location 1 接收 UV；编号必须和 VAO 配置一致。
         layout (location = 0) in vec3 aPos;
         void main() {
             gl_Position = vec4(aPos, 1.0);
@@ -589,9 +632,11 @@ int main()
         }
     )";
 
+    // 两个 Shader 都编译并链接成功后，program 才能用于绘制。
     const GLuint program = createProgram(vertexSource, fragmentSource);
     if (program == 0) {
-        glfwDestroyWindow(window);
+        // 退出时释放窗口和 Context；随后终止 GLFW 的全局资源。
+    glfwDestroyWindow(window);
         glfwTerminate();
         return 1;
     }
@@ -603,34 +648,51 @@ int main()
          0.0f,  0.6f, 0.0f
     };
 
+    // VAO 记录顶点属性解释方式，VBO 保存顶点字节；两者配合描述顶点输入。
     GLuint vao = 0;
     GLuint vbo = 0;
     glGenVertexArrays(1, &vao);
     glGenBuffers(1, &vbo);
 
     // VAO 记录“如何解释 VBO 中的数据”。
+    // 后续顶点属性配置会记录到当前 VAO。
     glBindVertexArray(vao);
+    // 绑定 VBO 后，GL_ARRAY_BUFFER 操作都会作用于它。
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    // 把 CPU 端顶点数组复制到 GPU，并声明数据主要会被静态读取。
+    // 把 CPU 端顶点数组复制到 GPU；GL_STATIC_DRAW 是使用频率提示。
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    // location 0 每次读取三个 float；stride 是相邻顶点的字节距离。
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
+    // 属性配置完成后必须启用该 location，Shader 才能收到顶点位置。
     glEnableVertexAttribArray(0);
     glBindVertexArray(0);
 
+    // 每次循环完成一帧：处理输入、更新状态、清除缓冲、绘制、交换前后缓冲。
     while (!glfwWindowShouldClose(window)) {
+        // glClearColor 只设置清屏状态，下一行 glClear 才真正写入颜色缓冲。
         glClearColor(0.012f, 0.006f, 0.025f, 1.0f);
+        // 清除上一帧的颜色，避免新帧残留旧画面。
         glClear(GL_COLOR_BUFFER_BIT);
 
+        // 选择当前绘制使用的 Shader Program。
         glUseProgram(program);
-        glBindVertexArray(vao);
+        // 后续顶点属性配置会记录到当前 VAO。
+    glBindVertexArray(vao);
+        // 从第 0 个顶点开始取 3 个顶点，组装成一个三角形。
         glDrawArrays(GL_TRIANGLES, 0, 3);
 
+        // 双缓冲先绘制后台缓冲，再一次性显示，避免半帧画面闪烁。
         glfwSwapBuffers(window);
+        // 取出操作系统事件，否则窗口无法响应移动、关闭和键盘鼠标输入。
         glfwPollEvents();
     }
 
+    // 删除 GPU 资源，避免在程序长时间运行或反复创建对象时泄漏。
     glDeleteVertexArrays(1, &vao);
     glDeleteBuffers(1, &vbo);
     glDeleteProgram(program);
+    // 退出时释放窗口和 Context；随后终止 GLFW 的全局资源。
     glfwDestroyWindow(window);
     glfwTerminate();
     return 0;
@@ -652,7 +714,9 @@ int main()
 //
 // 运行：powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\build.ps1 02_cube -Run
 // ============================================================================
+// GLAD 声明 OpenGL 函数类型，并在 Context 创建后加载实际函数地址。
 #include <glad/gl.h>
+// GLFW 负责窗口、OpenGL Context 以及键盘鼠标事件。
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -664,19 +728,25 @@ int main()
 
 namespace {
 
+// 将一段 GLSL 源码编译成一个 Shader 对象；type 区分顶点和片段阶段。
 GLuint compileShader(GLenum type, const char* source)
 {
+    // 先创建空对象，再上传源码并请求驱动编译。
     const GLuint shader = glCreateShader(type);
+    // 把 C++ 字符串交给 OpenGL；第三个参数表示源码字符串数量为 1。
     glShaderSource(shader, 1, &source, nullptr);
+    // 编译只检查 GLSL 语法和类型，失败信息要通过 GL_COMPILE_STATUS 查询。
     glCompileShader(shader);
 
     GLint success = GL_FALSE;
+    // 读取编译状态；失败时下面会取得 Info Log。
     glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
     if (!success) {
         GLint logLength = 0;
         glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &logLength);
         std::string log(static_cast<std::size_t>(logLength), '\0');
-        glGetShaderInfoLog(shader, logLength, nullptr, log.data());
+            // Info Log 包含行号和错误原因，学习阶段应始终打印它。
+    glGetShaderInfoLog(shader, logLength, nullptr, log.data());
         std::cerr << "Shader compilation failed:\n" << log << '\n';
         glDeleteShader(shader);
         return 0;
@@ -684,22 +754,28 @@ GLuint compileShader(GLenum type, const char* source)
     return shader;
 }
 
+// 把两个已编译 Shader 链接成一次绘制使用的 Program。
 GLuint createProgram(const char* vertexSource, const char* fragmentSource)
 {
     const GLuint vertexShader = compileShader(GL_VERTEX_SHADER, vertexSource);
     const GLuint fragmentShader = compileShader(GL_FRAGMENT_SHADER, fragmentSource);
     if (vertexShader == 0 || fragmentShader == 0) {
-        glDeleteShader(vertexShader);
+        // Program 链接完成后不再需要临时 Shader 对象，可以释放它们。
+    glDeleteShader(vertexShader);
         glDeleteShader(fragmentShader);
         return 0;
     }
 
+    // Program 保存 Shader 阶段之间的接口和最终可执行代码。
     const GLuint program = glCreateProgram();
+    // 先附加顶点和片段阶段，再链接它们的输入输出接口。
     glAttachShader(program, vertexShader);
     glAttachShader(program, fragmentShader);
+    // 链接阶段会检查两个 Shader 的接口是否匹配。
     glLinkProgram(program);
 
     GLint success = GL_FALSE;
+    // 编译成功不代表链接成功，所以还要单独检查 GL_LINK_STATUS。
     glGetProgramiv(program, GL_LINK_STATUS, &success);
     if (!success) {
         GLint logLength = 0;
@@ -708,34 +784,42 @@ GLuint createProgram(const char* vertexSource, const char* fragmentSource)
         glGetProgramInfoLog(program, logLength, nullptr, log.data());
         std::cerr << "Shader program linking failed:\n" << log << '\n';
         glDeleteProgram(program);
-        glDeleteShader(vertexShader);
+        // Program 链接完成后不再需要临时 Shader 对象，可以释放它们。
+    glDeleteShader(vertexShader);
         glDeleteShader(fragmentShader);
         return 0;
     }
 
+    // Program 链接完成后不再需要临时 Shader 对象，可以释放它们。
     glDeleteShader(vertexShader);
     glDeleteShader(fragmentShader);
     return program;
 }
 
+// framebuffer 尺寸变化时更新 viewport；这里的像素尺寸可能和窗口逻辑尺寸不同。
 void framebufferSizeCallback(GLFWwindow*, int width, int height)
 {
+    // viewport 把 OpenGL 的标准化设备坐标映射到当前 framebuffer。
     glViewport(0, 0, width, height);
 }
 
 } // namespace
 
+// 每个附录都是一个独立程序，因此从 main() 开始完成初始化、绘制和释放。
 int main()
 {
+    // 初始化 GLFW；失败时没有可用的窗口系统，立即返回。
     if (!glfwInit()) {
         std::cerr << "Failed to initialize GLFW.\n";
         return 1;
     }
 
+    // 这些 Hint 必须在创建窗口前设置，决定新 Context 请求的 OpenGL 版本和模式。
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
+    // 创建窗口时同时创建与之关联的 OpenGL Context。
     GLFWwindow* window = glfwCreateWindow(800, 600, "QuickOpenGL - Cube", nullptr, nullptr);
     if (!window) {
         std::cerr << "Failed to create GLFW window.\n";
@@ -743,11 +827,14 @@ int main()
         return 1;
     }
 
+    // 只有当前线程拥有有效 Context 后，glXXX 函数调用才有作用。
     glfwMakeContextCurrent(window);
     glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
+    // GLFW 提供地址查询入口，GLAD 用它加载当前驱动支持的 OpenGL 函数。
     if (!gladLoadGL(reinterpret_cast<GLADloadfunc>(glfwGetProcAddress))) {
         std::cerr << "Failed to load OpenGL functions.\n";
-        glfwDestroyWindow(window);
+        // 退出时释放窗口和 Context；随后终止 GLFW 的全局资源。
+    glfwDestroyWindow(window);
         glfwTerminate();
         return 1;
     }
@@ -759,9 +846,11 @@ int main()
 
     constexpr const char* vertexSource = R"(
         #version 330 core
+        // location 0 接收位置，location 1 接收 UV；编号必须和 VAO 配置一致。
         layout (location = 0) in vec3 aPos;
         uniform mat4 uMVP;
         void main() {
+            // 顶点先经过 MVP 变换，才能从模型坐标进入裁剪空间。
             gl_Position = uMVP * vec4(aPos, 1.0);
         }
     )";
@@ -774,9 +863,11 @@ int main()
         }
     )";
 
+    // 两个 Shader 都编译并链接成功后，program 才能用于绘制。
     const GLuint program = createProgram(vertexSource, fragmentSource);
     if (program == 0) {
-        glfwDestroyWindow(window);
+        // 退出时释放窗口和 Context；随后终止 GLFW 的全局资源。
+    glfwDestroyWindow(window);
         glfwTerminate();
         return 1;
     }
@@ -803,20 +894,30 @@ int main()
          0.5f, -0.5f,  0.5f, -0.5f, -0.5f,  0.5f, -0.5f, -0.5f, -0.5f
     };
 
+    // VAO 记录顶点属性解释方式，VBO 保存顶点字节；两者配合描述顶点输入。
     GLuint vao = 0;
     GLuint vbo = 0;
     glGenVertexArrays(1, &vao);
     glGenBuffers(1, &vbo);
+    // 后续顶点属性配置会记录到当前 VAO。
     glBindVertexArray(vao);
+    // 绑定 VBO 后，GL_ARRAY_BUFFER 操作都会作用于它。
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    // 把 CPU 端顶点数组复制到 GPU，并声明数据主要会被静态读取。
+    // 把 CPU 端顶点数组复制到 GPU；GL_STATIC_DRAW 是使用频率提示。
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    // location 0 每次读取三个 float；stride 是相邻顶点的字节距离。
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
+    // 属性配置完成后必须启用该 location，Shader 才能收到顶点位置。
     glEnableVertexAttribArray(0);
     glBindVertexArray(0);
 
+    // 深度测试让更近的片段遮挡更远的片段，立体物体必须开启它。
     glEnable(GL_DEPTH_TEST);
+    // uniform 位置查询一次即可，之后每帧上传新的矩阵值。
     const GLint mvpLocation = glGetUniformLocation(program, "uMVP");
 
+    // 每次循环完成一帧：处理输入、更新状态、清除缓冲、绘制、交换前后缓冲。
     while (!glfwWindowShouldClose(window)) {
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
             glfwSetWindowShouldClose(window, GLFW_TRUE);
@@ -826,33 +927,50 @@ int main()
         const int height = std::max(1, framebufferHeight);
         glfwGetFramebufferSize(window, &framebufferWidth, &framebufferHeight);
 
+        // 使用 framebuffer 宽高比构造透视投影，避免窗口拉伸后模型变形。
         const float aspect = static_cast<float>(framebufferWidth) /
                              static_cast<float>(std::max(1, framebufferHeight));
+        // 使用经过的秒数驱动动画，避免把动画速度写死为某个帧数。
         const float time = static_cast<float>(glfwGetTime());
+        // Model 把立方体从局部坐标旋转到世界坐标；GLM 角度参数使用弧度。
         const glm::mat4 model = glm::rotate(glm::mat4(1.0f), time, glm::vec3(0.5f, 1.0f, 0.0f));
+        // View 把世界坐标变换到摄像机坐标，lookAt 的三个参数是位置、目标和上方向。
         const glm::mat4 view = glm::lookAt(
             glm::vec3(2.0f, 1.8f, 3.2f),
             glm::vec3(0.0f),
             glm::vec3(0.0f, 1.0f, 0.0f));
+        // Projection 把摄像机空间投影到裁剪空间，形成近大远小的透视效果。
         const glm::mat4 projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 100.0f);
+        // 列向量约定下右侧的 Model 最先执行，组合顺序是 Projection * View * Model。
         const glm::mat4 mvp = projection * view * model;
 
-        glViewport(0, 0, width, height);
+        // viewport 把 OpenGL 的标准化设备坐标映射到当前 framebuffer。
+    glViewport(0, 0, width, height);
+        // glClearColor 只设置清屏状态，下一行 glClear 才真正写入颜色缓冲。
         glClearColor(0.008f, 0.012f, 0.025f, 1.0f);
+        // 颜色和深度必须同时清除，否则上一帧的深度会影响当前帧。
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+        // 选择当前绘制使用的 Shader Program。
         glUseProgram(program);
+        // glm::value_ptr 给出连续内存地址，OpenGL 将矩阵写入 Shader 的 uniform。
         glUniformMatrix4fv(mvpLocation, 1, GL_FALSE, glm::value_ptr(mvp));
-        glBindVertexArray(vao);
+        // 后续顶点属性配置会记录到当前 VAO。
+    glBindVertexArray(vao);
+        // 36 个顶点组成 6 个面，每个面由两个三角形绘制。
         glDrawArrays(GL_TRIANGLES, 0, 36);
 
+        // 双缓冲先绘制后台缓冲，再一次性显示，避免半帧画面闪烁。
         glfwSwapBuffers(window);
+        // 取出操作系统事件，否则窗口无法响应移动、关闭和键盘鼠标输入。
         glfwPollEvents();
     }
 
+    // 删除 GPU 资源，避免在程序长时间运行或反复创建对象时泄漏。
     glDeleteVertexArrays(1, &vao);
     glDeleteBuffers(1, &vbo);
     glDeleteProgram(program);
+    // 退出时释放窗口和 Context；随后终止 GLFW 的全局资源。
     glfwDestroyWindow(window);
     glfwTerminate();
     return 0;
@@ -874,7 +992,9 @@ int main()
 //
 // 运行：powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\build.ps1 03_texture -Run
 // ============================================================================
+// GLAD 声明 OpenGL 函数类型，并在 Context 创建后加载实际函数地址。
 #include <glad/gl.h>
+// GLFW 负责窗口、OpenGL Context 以及键盘鼠标事件。
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -888,12 +1008,14 @@ int main()
 
 namespace {
 
+// PPM 读取结果：像素按 RGBRGB... 连续保存，便于直接上传到 GL_RGB 纹理。
 struct Image {
     int width = 0;
     int height = 0;
     std::vector<unsigned char> pixels;
 };
 
+// P3 是 ASCII PPM 格式：读取头部后，后续整数依次表示 R、G、B 分量。
 bool loadPpmP3(const std::string& path, Image& image)
 {
     std::ifstream file(path);
@@ -910,6 +1032,7 @@ bool loadPpmP3(const std::string& path, Image& image)
         return false;
     }
 
+    // 每个像素有 3 个颜色分量，因此需要 width * height * 3 个字节。
     image.pixels.resize(static_cast<std::size_t>(image.width) *
                         static_cast<std::size_t>(image.height) * 3);
     for (std::size_t i = 0; i < image.pixels.size(); ++i) {
@@ -919,24 +1042,31 @@ bool loadPpmP3(const std::string& path, Image& image)
             return false;
         }
         value = std::clamp(value, 0, maxValue);
+        // 将 PPM 的 0~maxValue 范围归一化为 OpenGL 常用的 0~255。
         image.pixels[i] = static_cast<unsigned char>(255 * value / maxValue);
     }
     return true;
 }
 
+// 将一段 GLSL 源码编译成一个 Shader 对象；type 区分顶点和片段阶段。
 GLuint compileShader(GLenum type, const char* source)
 {
+    // 先创建空对象，再上传源码并请求驱动编译。
     const GLuint shader = glCreateShader(type);
+    // 把 C++ 字符串交给 OpenGL；第三个参数表示源码字符串数量为 1。
     glShaderSource(shader, 1, &source, nullptr);
+    // 编译只检查 GLSL 语法和类型，失败信息要通过 GL_COMPILE_STATUS 查询。
     glCompileShader(shader);
 
     GLint success = GL_FALSE;
+    // 读取编译状态；失败时下面会取得 Info Log。
     glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
     if (!success) {
         GLint logLength = 0;
         glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &logLength);
         std::string log(static_cast<std::size_t>(logLength), '\0');
-        glGetShaderInfoLog(shader, logLength, nullptr, log.data());
+            // Info Log 包含行号和错误原因，学习阶段应始终打印它。
+    glGetShaderInfoLog(shader, logLength, nullptr, log.data());
         std::cerr << "Shader compilation failed:\n" << log << '\n';
         glDeleteShader(shader);
         return 0;
@@ -944,22 +1074,28 @@ GLuint compileShader(GLenum type, const char* source)
     return shader;
 }
 
+// 把两个已编译 Shader 链接成一次绘制使用的 Program。
 GLuint createProgram(const char* vertexSource, const char* fragmentSource)
 {
     const GLuint vertexShader = compileShader(GL_VERTEX_SHADER, vertexSource);
     const GLuint fragmentShader = compileShader(GL_FRAGMENT_SHADER, fragmentSource);
     if (vertexShader == 0 || fragmentShader == 0) {
-        glDeleteShader(vertexShader);
+        // Program 链接完成后不再需要临时 Shader 对象，可以释放它们。
+    glDeleteShader(vertexShader);
         glDeleteShader(fragmentShader);
         return 0;
     }
 
+    // Program 保存 Shader 阶段之间的接口和最终可执行代码。
     const GLuint program = glCreateProgram();
+    // 先附加顶点和片段阶段，再链接它们的输入输出接口。
     glAttachShader(program, vertexShader);
     glAttachShader(program, fragmentShader);
+    // 链接阶段会检查两个 Shader 的接口是否匹配。
     glLinkProgram(program);
 
     GLint success = GL_FALSE;
+    // 编译成功不代表链接成功，所以还要单独检查 GL_LINK_STATUS。
     glGetProgramiv(program, GL_LINK_STATUS, &success);
     if (!success) {
         GLint logLength = 0;
@@ -968,16 +1104,19 @@ GLuint createProgram(const char* vertexSource, const char* fragmentSource)
         glGetProgramInfoLog(program, logLength, nullptr, log.data());
         std::cerr << "Shader program linking failed:\n" << log << '\n';
         glDeleteProgram(program);
-        glDeleteShader(vertexShader);
+        // Program 链接完成后不再需要临时 Shader 对象，可以释放它们。
+    glDeleteShader(vertexShader);
         glDeleteShader(fragmentShader);
         return 0;
     }
 
+    // Program 链接完成后不再需要临时 Shader 对象，可以释放它们。
     glDeleteShader(vertexShader);
     glDeleteShader(fragmentShader);
     return program;
 }
 
+// 一个顶点按 xyzuv 排列：前三个 float 是位置，后两个 float 是纹理坐标。
 void addVertex(std::vector<float>& vertices, const glm::vec3& position, const glm::vec2& uv)
 {
     vertices.insert(vertices.end(), {
@@ -985,6 +1124,7 @@ void addVertex(std::vector<float>& vertices, const glm::vec3& position, const gl
     });
 }
 
+// 一个四边形拆为两个三角形，顶点 c 会在两个三角形之间重复。
 void addFace(std::vector<float>& vertices,
              const glm::vec3& a,
              const glm::vec3& b,
@@ -1002,6 +1142,7 @@ void addFace(std::vector<float>& vertices,
 std::vector<float> makeTexturedCube()
 {
     std::vector<float> vertices;
+    // 36 个顶点、每个 5 个 float：预留容量可避免构造过程中反复扩容。
     vertices.reserve(36 * 5);
 
     // 每个面按照逆时针方向添加 6 个顶点。
@@ -1020,24 +1161,30 @@ std::vector<float> makeTexturedCube()
     return vertices;
 }
 
+// framebuffer 尺寸变化时更新 viewport；这里的像素尺寸可能和窗口逻辑尺寸不同。
 void framebufferSizeCallback(GLFWwindow*, int width, int height)
 {
+    // viewport 把 OpenGL 的标准化设备坐标映射到当前 framebuffer。
     glViewport(0, 0, width, height);
 }
 
 } // namespace
 
+// 每个附录都是一个独立程序，因此从 main() 开始完成初始化、绘制和释放。
 int main()
 {
+    // 初始化 GLFW；失败时没有可用的窗口系统，立即返回。
     if (!glfwInit()) {
         std::cerr << "Failed to initialize GLFW.\n";
         return 1;
     }
 
+    // 这些 Hint 必须在创建窗口前设置，决定新 Context 请求的 OpenGL 版本和模式。
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
+    // 创建窗口时同时创建与之关联的 OpenGL Context。
     GLFWwindow* window = glfwCreateWindow(800, 600, "QuickOpenGL - Textured Cube", nullptr, nullptr);
     if (!window) {
         std::cerr << "Failed to create GLFW window.\n";
@@ -1045,11 +1192,14 @@ int main()
         return 1;
     }
 
+    // 只有当前线程拥有有效 Context 后，glXXX 函数调用才有作用。
     glfwMakeContextCurrent(window);
     glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
+    // GLFW 提供地址查询入口，GLAD 用它加载当前驱动支持的 OpenGL 函数。
     if (!gladLoadGL(reinterpret_cast<GLADloadfunc>(glfwGetProcAddress))) {
         std::cerr << "Failed to load OpenGL functions.\n";
-        glfwDestroyWindow(window);
+        // 退出时释放窗口和 Context；随后终止 GLFW 的全局资源。
+    glfwDestroyWindow(window);
         glfwTerminate();
         return 1;
     }
@@ -1061,12 +1211,15 @@ int main()
 
     constexpr const char* vertexSource = R"(
         #version 330 core
+        // location 0 接收位置，location 1 接收 UV；编号必须和 VAO 配置一致。
         layout (location = 0) in vec3 aPos;
         layout (location = 1) in vec2 aTexCoord;
         uniform mat4 uMVP;
         out vec2 TexCoord;
         void main() {
+            // 顶点先经过 MVP 变换，才能从模型坐标进入裁剪空间。
             gl_Position = uMVP * vec4(aPos, 1.0);
+            // UV 会被光栅化器插值，片段 Shader 获得每个片段的纹理坐标。
             TexCoord = aTexCoord;
         }
     )";
@@ -1077,95 +1230,135 @@ int main()
         uniform sampler2D uTexture;
         out vec4 FragColor;
         void main() {
+            // 使用插值后的 UV 从绑定的二维纹理采样最终颜色。
             FragColor = texture(uTexture, TexCoord);
         }
     )";
 
+    // 两个 Shader 都编译并链接成功后，program 才能用于绘制。
     const GLuint program = createProgram(vertexSource, fragmentSource);
     if (program == 0) {
-        glfwDestroyWindow(window);
+        // 退出时释放窗口和 Context；随后终止 GLFW 的全局资源。
+    glfwDestroyWindow(window);
         glfwTerminate();
         return 1;
     }
 
     const std::vector<float> vertices = makeTexturedCube();
+    // VAO 记录顶点属性解释方式，VBO 保存顶点字节；两者配合描述顶点输入。
     GLuint vao = 0;
     GLuint vbo = 0;
     glGenVertexArrays(1, &vao);
     glGenBuffers(1, &vbo);
+    // 后续顶点属性配置会记录到当前 VAO。
     glBindVertexArray(vao);
+    // 绑定 VBO 后，GL_ARRAY_BUFFER 操作都会作用于它。
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    // 把 CPU 端顶点数组复制到 GPU，并声明数据主要会被静态读取。
     glBufferData(GL_ARRAY_BUFFER,
                  static_cast<GLsizeiptr>(vertices.size() * sizeof(float)),
                  vertices.data(), GL_STATIC_DRAW);
+    // xyzuv 共 5 个 float；UV 的偏移是 3 个 float，也就是跳过 xyz。
     constexpr GLsizei stride = 5 * sizeof(float);
+    // location 0 每次读取三个 float；stride 是相邻顶点的字节距离。
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, nullptr);
+    // 属性配置完成后必须启用该 location，Shader 才能收到顶点位置。
     glEnableVertexAttribArray(0);
+    // location 1 每个顶点读取两个 float，起点从 xyz 后的第 4 个 float 开始。
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, stride,
                           reinterpret_cast<void*>(3 * sizeof(float)));
     glEnableVertexAttribArray(1);
     glBindVertexArray(0);
 
+    // 先在 CPU 内存读取和校验纹理，成功后再创建 GPU 纹理对象。
     Image image;
     if (!loadPpmP3("assets/checker.ppm", image)) {
-        glDeleteVertexArrays(1, &vao);
+        // 删除 GPU 资源，避免在程序长时间运行或反复创建对象时泄漏。
+    glDeleteVertexArrays(1, &vao);
         glDeleteBuffers(1, &vbo);
         glDeleteProgram(program);
-        glfwDestroyWindow(window);
+        // 退出时释放窗口和 Context；随后终止 GLFW 的全局资源。
+    glfwDestroyWindow(window);
         glfwTerminate();
         return 1;
     }
 
+    // texture 是 GPU 纹理对象的句柄，不是像素数据本身。
     GLuint texture = 0;
     glGenTextures(1, &texture);
     glBindTexture(GL_TEXTURE_2D, texture);
+    // S/T 是纹理坐标的两个方向；Repeat 让超出 0~1 的坐标重复图案。
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    // 把 CPU 的 RGB 字节上传为二维纹理，Shader 才能通过 sampler2D 读取。
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image.width, image.height,
                  0, GL_RGB, GL_UNSIGNED_BYTE, image.pixels.data());
+    // 生成缩小纹理所需的各级 Mipmap，配合 MIN_FILTER 使用。
     glGenerateMipmap(GL_TEXTURE_2D);
 
+    // 深度测试让更近的片段遮挡更远的片段，立体物体必须开启它。
     glEnable(GL_DEPTH_TEST);
+    // uniform 位置查询一次即可，之后每帧上传新的矩阵值。
     const GLint mvpLocation = glGetUniformLocation(program, "uMVP");
     const GLint textureLocation = glGetUniformLocation(program, "uTexture");
 
+    // 每次循环完成一帧：处理输入、更新状态、清除缓冲、绘制、交换前后缓冲。
     while (!glfwWindowShouldClose(window)) {
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
             glfwSetWindowShouldClose(window, GLFW_TRUE);
         }
 
         glfwGetFramebufferSize(window, &framebufferWidth, &framebufferHeight);
+        // 使用 framebuffer 宽高比构造透视投影，避免窗口拉伸后模型变形。
         const float aspect = static_cast<float>(framebufferWidth) /
                              static_cast<float>(std::max(1, framebufferHeight));
+        // 使用经过的秒数驱动动画，避免把动画速度写死为某个帧数。
         const float time = static_cast<float>(glfwGetTime());
+        // Model 把立方体从局部坐标旋转到世界坐标；GLM 角度参数使用弧度。
         const glm::mat4 model = glm::rotate(glm::mat4(1.0f), time, glm::vec3(0.5f, 1.0f, 0.0f));
+        // View 把世界坐标变换到摄像机坐标，lookAt 的三个参数是位置、目标和上方向。
         const glm::mat4 view = glm::lookAt(
             glm::vec3(2.0f, 1.8f, 3.2f), glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        // Projection 把摄像机空间投影到裁剪空间，形成近大远小的透视效果。
         const glm::mat4 projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 100.0f);
+        // 列向量约定下右侧的 Model 最先执行，组合顺序是 Projection * View * Model。
         const glm::mat4 mvp = projection * view * model;
 
         glViewport(0, 0, framebufferWidth, framebufferHeight);
+        // glClearColor 只设置清屏状态，下一行 glClear 才真正写入颜色缓冲。
         glClearColor(0.008f, 0.012f, 0.025f, 1.0f);
+        // 颜色和深度必须同时清除，否则上一帧的深度会影响当前帧。
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+        // 选择当前绘制使用的 Shader Program。
         glUseProgram(program);
+        // glm::value_ptr 给出连续内存地址，OpenGL 将矩阵写入 Shader 的 uniform。
         glUniformMatrix4fv(mvpLocation, 1, GL_FALSE, glm::value_ptr(mvp));
+        // sampler uniform 保存的是纹理单元编号；先激活单元 0，再绑定 texture。
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, texture);
+        // 告诉 Shader 的 sampler2D 从纹理单元 0 取样。
         glUniform1i(textureLocation, 0);
-        glBindVertexArray(vao);
+        // 后续顶点属性配置会记录到当前 VAO。
+    glBindVertexArray(vao);
+        // 36 个顶点组成 6 个面，每个面由两个三角形绘制。
         glDrawArrays(GL_TRIANGLES, 0, 36);
 
+        // 双缓冲先绘制后台缓冲，再一次性显示，避免半帧画面闪烁。
         glfwSwapBuffers(window);
+        // 取出操作系统事件，否则窗口无法响应移动、关闭和键盘鼠标输入。
         glfwPollEvents();
     }
 
+    // 纹理对象也属于 GPU 资源，退出前显式释放。
     glDeleteTextures(1, &texture);
+    // 删除 GPU 资源，避免在程序长时间运行或反复创建对象时泄漏。
     glDeleteVertexArrays(1, &vao);
     glDeleteBuffers(1, &vbo);
     glDeleteProgram(program);
+    // 退出时释放窗口和 Context；随后终止 GLFW 的全局资源。
     glfwDestroyWindow(window);
     glfwTerminate();
     return 0;
@@ -1187,7 +1380,9 @@ int main()
 //
 // 运行：powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\build.ps1 04_interactive_cube -Run
 // ============================================================================
+// GLAD 声明 OpenGL 函数类型，并在 Context 创建后加载实际函数地址。
 #include <glad/gl.h>
+// GLFW 负责窗口、OpenGL Context 以及键盘鼠标事件。
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -1202,24 +1397,29 @@ int main()
 
 namespace {
 
+// PPM 读取结果：像素按 RGBRGB... 连续保存，便于直接上传到 GL_RGB 纹理。
 struct Image {
     int width = 0;
     int height = 0;
     std::vector<unsigned char> pixels;
 };
 
+// 相机状态集中保存，GLFW 回调通过 window user pointer 访问它。
 struct CameraState {
+    // yaw 控制水平旋转，pitch 控制上下俯仰，distance 控制到目标点的距离。
     float yaw = 35.0f;
     float pitch = 20.0f;
     float distance = 3.5f;
     bool dragging = false;
     bool autoRotate = false;
+    // 保存上一帧按键状态，用于只在按下瞬间切换 F/R 功能。
     bool fWasPressed = false;
     bool rWasPressed = false;
     double lastCursorX = 0.0;
     double lastCursorY = 0.0;
 };
 
+// P3 是 ASCII PPM 格式：读取头部后，后续整数依次表示 R、G、B 分量。
 bool loadPpmP3(const std::string& path, Image& image)
 {
     std::ifstream file(path);
@@ -1236,6 +1436,7 @@ bool loadPpmP3(const std::string& path, Image& image)
         return false;
     }
 
+    // 每个像素有 3 个颜色分量，因此需要 width * height * 3 个字节。
     image.pixels.resize(static_cast<std::size_t>(image.width) *
                         static_cast<std::size_t>(image.height) * 3);
     for (std::size_t i = 0; i < image.pixels.size(); ++i) {
@@ -1245,24 +1446,31 @@ bool loadPpmP3(const std::string& path, Image& image)
             return false;
         }
         value = std::clamp(value, 0, maxValue);
+        // 将 PPM 的 0~maxValue 范围归一化为 OpenGL 常用的 0~255。
         image.pixels[i] = static_cast<unsigned char>(255 * value / maxValue);
     }
     return true;
 }
 
+// 将一段 GLSL 源码编译成一个 Shader 对象；type 区分顶点和片段阶段。
 GLuint compileShader(GLenum type, const char* source)
 {
+    // 先创建空对象，再上传源码并请求驱动编译。
     const GLuint shader = glCreateShader(type);
+    // 把 C++ 字符串交给 OpenGL；第三个参数表示源码字符串数量为 1。
     glShaderSource(shader, 1, &source, nullptr);
+    // 编译只检查 GLSL 语法和类型，失败信息要通过 GL_COMPILE_STATUS 查询。
     glCompileShader(shader);
 
     GLint success = GL_FALSE;
+    // 读取编译状态；失败时下面会取得 Info Log。
     glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
     if (!success) {
         GLint logLength = 0;
         glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &logLength);
         std::string log(static_cast<std::size_t>(logLength), '\0');
-        glGetShaderInfoLog(shader, logLength, nullptr, log.data());
+            // Info Log 包含行号和错误原因，学习阶段应始终打印它。
+    glGetShaderInfoLog(shader, logLength, nullptr, log.data());
         std::cerr << "Shader compilation failed:\n" << log << '\n';
         glDeleteShader(shader);
         return 0;
@@ -1270,22 +1478,28 @@ GLuint compileShader(GLenum type, const char* source)
     return shader;
 }
 
+// 把两个已编译 Shader 链接成一次绘制使用的 Program。
 GLuint createProgram(const char* vertexSource, const char* fragmentSource)
 {
     const GLuint vertexShader = compileShader(GL_VERTEX_SHADER, vertexSource);
     const GLuint fragmentShader = compileShader(GL_FRAGMENT_SHADER, fragmentSource);
     if (vertexShader == 0 || fragmentShader == 0) {
-        glDeleteShader(vertexShader);
+        // Program 链接完成后不再需要临时 Shader 对象，可以释放它们。
+    glDeleteShader(vertexShader);
         glDeleteShader(fragmentShader);
         return 0;
     }
 
+    // Program 保存 Shader 阶段之间的接口和最终可执行代码。
     const GLuint program = glCreateProgram();
+    // 先附加顶点和片段阶段，再链接它们的输入输出接口。
     glAttachShader(program, vertexShader);
     glAttachShader(program, fragmentShader);
+    // 链接阶段会检查两个 Shader 的接口是否匹配。
     glLinkProgram(program);
 
     GLint success = GL_FALSE;
+    // 编译成功不代表链接成功，所以还要单独检查 GL_LINK_STATUS。
     glGetProgramiv(program, GL_LINK_STATUS, &success);
     if (!success) {
         GLint logLength = 0;
@@ -1294,16 +1508,19 @@ GLuint createProgram(const char* vertexSource, const char* fragmentSource)
         glGetProgramInfoLog(program, logLength, nullptr, log.data());
         std::cerr << "Shader program linking failed:\n" << log << '\n';
         glDeleteProgram(program);
-        glDeleteShader(vertexShader);
+        // Program 链接完成后不再需要临时 Shader 对象，可以释放它们。
+    glDeleteShader(vertexShader);
         glDeleteShader(fragmentShader);
         return 0;
     }
 
+    // Program 链接完成后不再需要临时 Shader 对象，可以释放它们。
     glDeleteShader(vertexShader);
     glDeleteShader(fragmentShader);
     return program;
 }
 
+// 一个顶点按 xyzuv 排列：前三个 float 是位置，后两个 float 是纹理坐标。
 void addVertex(std::vector<float>& vertices, const glm::vec3& position, const glm::vec2& uv)
 {
     vertices.insert(vertices.end(), {
@@ -1311,6 +1528,7 @@ void addVertex(std::vector<float>& vertices, const glm::vec3& position, const gl
     });
 }
 
+// 一个四边形拆为两个三角形，顶点 c 会在两个三角形之间重复。
 void addFace(std::vector<float>& vertices,
              const glm::vec3& a,
              const glm::vec3& b,
@@ -1328,6 +1546,7 @@ void addFace(std::vector<float>& vertices,
 std::vector<float> makeTexturedCube()
 {
     std::vector<float> vertices;
+    // 36 个顶点、每个 5 个 float：预留容量可避免构造过程中反复扩容。
     vertices.reserve(36 * 5);
     addFace(vertices, {-0.5f, -0.5f,  0.5f}, { 0.5f, -0.5f,  0.5f},
                      { 0.5f,  0.5f,  0.5f}, {-0.5f,  0.5f,  0.5f});
@@ -1344,11 +1563,14 @@ std::vector<float> makeTexturedCube()
     return vertices;
 }
 
+// framebuffer 尺寸变化时更新 viewport；这里的像素尺寸可能和窗口逻辑尺寸不同。
 void framebufferSizeCallback(GLFWwindow*, int width, int height)
 {
+    // viewport 把 OpenGL 的标准化设备坐标映射到当前 framebuffer。
     glViewport(0, 0, width, height);
 }
 
+// 左键按下开始拖动并记录起点，释放后停止更新角度。
 void mouseButtonCallback(GLFWwindow* window, int button, int action, int)
 {
     if (button != GLFW_MOUSE_BUTTON_LEFT) {
@@ -1364,6 +1586,7 @@ void mouseButtonCallback(GLFWwindow* window, int button, int action, int)
     }
 }
 
+// 光标回调通过本次位置减去上次位置得到拖动增量。
 void cursorPositionCallback(GLFWwindow* window, double cursorX, double cursorY)
 {
     auto* state = static_cast<CameraState*>(glfwGetWindowUserPointer(window));
@@ -1381,9 +1604,11 @@ void cursorPositionCallback(GLFWwindow* window, double cursorX, double cursorY)
     constexpr float sensitivity = 0.25f;
     state->yaw += static_cast<float>(dx) * sensitivity;
     state->pitch -= static_cast<float>(dy) * sensitivity;
+    // 限制俯仰角，避免相机与世界上方向平行导致 lookAt 退化。
     state->pitch = std::clamp(state->pitch, -89.0f, 89.0f);
 }
 
+// 滚轮只修改相机距离，并限制范围避免穿过模型。
 void scrollCallback(GLFWwindow* window, double, double yOffset)
 {
     auto* state = static_cast<CameraState*>(glfwGetWindowUserPointer(window));
@@ -1391,6 +1616,7 @@ void scrollCallback(GLFWwindow* window, double, double yOffset)
     state->distance = std::clamp(state->distance, 2.0f, 9.0f);
 }
 
+// 每帧处理连续按键；F/R 通过边沿检测避免按住时重复切换。
 void processInput(GLFWwindow* window, CameraState& state, float deltaTime)
 {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
@@ -1418,17 +1644,21 @@ void processInput(GLFWwindow* window, CameraState& state, float deltaTime)
 
 } // namespace
 
+// 每个附录都是一个独立程序，因此从 main() 开始完成初始化、绘制和释放。
 int main()
 {
+    // 初始化 GLFW；失败时没有可用的窗口系统，立即返回。
     if (!glfwInit()) {
         std::cerr << "Failed to initialize GLFW.\n";
         return 1;
     }
 
+    // 这些 Hint 必须在创建窗口前设置，决定新 Context 请求的 OpenGL 版本和模式。
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
+    // 创建窗口时同时创建与之关联的 OpenGL Context。
     GLFWwindow* window = glfwCreateWindow(900, 600, "QuickOpenGL - Interactive Cube", nullptr, nullptr);
     if (!window) {
         std::cerr << "Failed to create GLFW window.\n";
@@ -1436,15 +1666,19 @@ int main()
         return 1;
     }
 
+    // 只有当前线程拥有有效 Context 后，glXXX 函数调用才有作用。
     glfwMakeContextCurrent(window);
+    // GLFW 提供地址查询入口，GLAD 用它加载当前驱动支持的 OpenGL 函数。
     if (!gladLoadGL(reinterpret_cast<GLADloadfunc>(glfwGetProcAddress))) {
         std::cerr << "Failed to load OpenGL functions.\n";
-        glfwDestroyWindow(window);
+        // 退出时释放窗口和 Context；随后终止 GLFW 的全局资源。
+    glfwDestroyWindow(window);
         glfwTerminate();
         return 1;
     }
 
     CameraState camera;
+    // GLFW 回调签名固定，使用 user pointer 把 camera 状态传入回调。
     glfwSetWindowUserPointer(window, &camera);
     glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
     glfwSetMouseButtonCallback(window, mouseButtonCallback);
@@ -1458,12 +1692,15 @@ int main()
 
     constexpr const char* vertexSource = R"(
         #version 330 core
+        // location 0 接收位置，location 1 接收 UV；编号必须和 VAO 配置一致。
         layout (location = 0) in vec3 aPos;
         layout (location = 1) in vec2 aTexCoord;
         uniform mat4 uMVP;
         out vec2 TexCoord;
         void main() {
+            // 顶点先经过 MVP 变换，才能从模型坐标进入裁剪空间。
             gl_Position = uMVP * vec4(aPos, 1.0);
+            // UV 会被光栅化器插值，片段 Shader 获得每个片段的纹理坐标。
             TexCoord = aTexCoord;
         }
     )";
@@ -1474,63 +1711,86 @@ int main()
         uniform sampler2D uTexture;
         out vec4 FragColor;
         void main() {
+            // 使用插值后的 UV 从绑定的二维纹理采样最终颜色。
             FragColor = texture(uTexture, TexCoord);
         }
     )";
 
+    // 两个 Shader 都编译并链接成功后，program 才能用于绘制。
     const GLuint program = createProgram(vertexSource, fragmentSource);
     if (program == 0) {
-        glfwDestroyWindow(window);
+        // 退出时释放窗口和 Context；随后终止 GLFW 的全局资源。
+    glfwDestroyWindow(window);
         glfwTerminate();
         return 1;
     }
 
     const std::vector<float> vertices = makeTexturedCube();
+    // VAO 记录顶点属性解释方式，VBO 保存顶点字节；两者配合描述顶点输入。
     GLuint vao = 0;
     GLuint vbo = 0;
     glGenVertexArrays(1, &vao);
     glGenBuffers(1, &vbo);
+    // 后续顶点属性配置会记录到当前 VAO。
     glBindVertexArray(vao);
+    // 绑定 VBO 后，GL_ARRAY_BUFFER 操作都会作用于它。
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    // 把 CPU 端顶点数组复制到 GPU，并声明数据主要会被静态读取。
     glBufferData(GL_ARRAY_BUFFER,
                  static_cast<GLsizeiptr>(vertices.size() * sizeof(float)),
                  vertices.data(), GL_STATIC_DRAW);
+    // xyzuv 共 5 个 float；UV 的偏移是 3 个 float，也就是跳过 xyz。
     constexpr GLsizei stride = 5 * sizeof(float);
+    // location 0 每次读取三个 float；stride 是相邻顶点的字节距离。
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, nullptr);
+    // 属性配置完成后必须启用该 location，Shader 才能收到顶点位置。
     glEnableVertexAttribArray(0);
+    // location 1 每个顶点读取两个 float，起点从 xyz 后的第 4 个 float 开始。
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, stride,
                           reinterpret_cast<void*>(3 * sizeof(float)));
     glEnableVertexAttribArray(1);
     glBindVertexArray(0);
 
+    // 先在 CPU 内存读取和校验纹理，成功后再创建 GPU 纹理对象。
     Image image;
     if (!loadPpmP3("assets/checker.ppm", image)) {
-        glDeleteVertexArrays(1, &vao);
+        // 删除 GPU 资源，避免在程序长时间运行或反复创建对象时泄漏。
+    glDeleteVertexArrays(1, &vao);
         glDeleteBuffers(1, &vbo);
         glDeleteProgram(program);
-        glfwDestroyWindow(window);
+        // 退出时释放窗口和 Context；随后终止 GLFW 的全局资源。
+    glfwDestroyWindow(window);
         glfwTerminate();
         return 1;
     }
 
+    // texture 是 GPU 纹理对象的句柄，不是像素数据本身。
     GLuint texture = 0;
     glGenTextures(1, &texture);
     glBindTexture(GL_TEXTURE_2D, texture);
+    // S/T 是纹理坐标的两个方向；Repeat 让超出 0~1 的坐标重复图案。
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    // 把 CPU 的 RGB 字节上传为二维纹理，Shader 才能通过 sampler2D 读取。
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image.width, image.height,
                  0, GL_RGB, GL_UNSIGNED_BYTE, image.pixels.data());
+    // 生成缩小纹理所需的各级 Mipmap，配合 MIN_FILTER 使用。
     glGenerateMipmap(GL_TEXTURE_2D);
 
+    // 深度测试让更近的片段遮挡更远的片段，立体物体必须开启它。
     glEnable(GL_DEPTH_TEST);
+    // uniform 位置查询一次即可，之后每帧上传新的矩阵值。
     const GLint mvpLocation = glGetUniformLocation(program, "uMVP");
     const GLint textureLocation = glGetUniformLocation(program, "uTexture");
+    // 记录上一帧时间，用于得到与帧率无关的 deltaTime。
     double previousTime = glfwGetTime();
 
+    // 每次循环完成一帧：处理输入、更新状态、清除缓冲、绘制、交换前后缓冲。
     while (!glfwWindowShouldClose(window)) {
         const double currentTime = glfwGetTime();
+        // deltaTime 是两帧间隔秒数；限制最大值可避免调试暂停后相机突然跳动。
         const float deltaTime = static_cast<float>(currentTime - previousTime);
         previousTime = currentTime;
         processInput(window, camera, std::min(deltaTime, 0.1f));
@@ -1542,37 +1802,55 @@ int main()
 
         const float yaw = glm::radians(camera.yaw);
         const float pitch = glm::radians(camera.pitch);
+        // 将球面坐标 yaw/pitch/distance 转为世界坐标中的摄像机位置。
         const glm::vec3 cameraPosition(
             camera.distance * std::cos(pitch) * std::sin(yaw),
             camera.distance * std::sin(pitch),
             camera.distance * std::cos(pitch) * std::cos(yaw));
 
+        // 这一课保持模型不动，用户通过改变 View 矩阵来观察它。
         const glm::mat4 model = glm::mat4(1.0f);
+        // View 把世界坐标变换到摄像机坐标，lookAt 的三个参数是位置、目标和上方向。
         const glm::mat4 view = glm::lookAt(
             cameraPosition, glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        // Projection 把摄像机空间投影到裁剪空间，形成近大远小的透视效果。
         const glm::mat4 projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 100.0f);
+        // 列向量约定下右侧的 Model 最先执行，组合顺序是 Projection * View * Model。
         const glm::mat4 mvp = projection * view * model;
 
         glViewport(0, 0, safeWidth, safeHeight);
+        // glClearColor 只设置清屏状态，下一行 glClear 才真正写入颜色缓冲。
         glClearColor(0.008f, 0.012f, 0.025f, 1.0f);
+        // 颜色和深度必须同时清除，否则上一帧的深度会影响当前帧。
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+        // 选择当前绘制使用的 Shader Program。
         glUseProgram(program);
+        // glm::value_ptr 给出连续内存地址，OpenGL 将矩阵写入 Shader 的 uniform。
         glUniformMatrix4fv(mvpLocation, 1, GL_FALSE, glm::value_ptr(mvp));
+        // sampler uniform 保存的是纹理单元编号；先激活单元 0，再绑定 texture。
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, texture);
+        // 告诉 Shader 的 sampler2D 从纹理单元 0 取样。
         glUniform1i(textureLocation, 0);
-        glBindVertexArray(vao);
+        // 后续顶点属性配置会记录到当前 VAO。
+    glBindVertexArray(vao);
+        // 36 个顶点组成 6 个面，每个面由两个三角形绘制。
         glDrawArrays(GL_TRIANGLES, 0, 36);
 
+        // 双缓冲先绘制后台缓冲，再一次性显示，避免半帧画面闪烁。
         glfwSwapBuffers(window);
+        // 取出操作系统事件，否则窗口无法响应移动、关闭和键盘鼠标输入。
         glfwPollEvents();
     }
 
+    // 纹理对象也属于 GPU 资源，退出前显式释放。
     glDeleteTextures(1, &texture);
+    // 删除 GPU 资源，避免在程序长时间运行或反复创建对象时泄漏。
     glDeleteVertexArrays(1, &vao);
     glDeleteBuffers(1, &vbo);
     glDeleteProgram(program);
+    // 退出时释放窗口和 Context；随后终止 GLFW 的全局资源。
     glfwDestroyWindow(window);
     glfwTerminate();
     return 0;
